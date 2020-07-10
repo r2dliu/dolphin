@@ -43,7 +43,10 @@ option(USE_DISCORD_PRESENCE "Enables Discord Rich Presence, show the current gam
 #    launch).
 #  * The Dolphin team relies on the data in order to understand the behavior
 #    of our software in the wild.
-option(ENABLE_ANALYTICS "Enables opt-in Analytics collection" ON)
+option(ENABLE_ANALYTICS "Enables opt-in Analytics collection" OFF)
+
+# Playback builds for Slippi include some extra UI tweaks
+option(IS_PLAYBACK "Enable Playback changes" OFF)
 
 option(ENCODE_FRAMEDUMPS "Encode framedumps in AVI format" ON)
 
@@ -506,6 +509,11 @@ endif()
 if(ENABLE_ANALYTICS)
   message(STATUS "Enabling analytics collection (subject to end-user opt-in)")
   add_definitions(-DUSE_ANALYTICS=1)
+endif()
+
+if(IS_PLAYBACK)
+	message("Enabling Playback changes")
+	add_definitions(-DIS_PLAYBACK)
 endif()
 
 ########################################
