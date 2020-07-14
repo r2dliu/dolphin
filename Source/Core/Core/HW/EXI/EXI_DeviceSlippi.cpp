@@ -709,7 +709,6 @@ void CEXISlippi::prepareGameInfo(u8* payload)
   if (replayCommSettings.rollbackDisplayMethod == "off" &&
     (replayCommSettings.mode == "normal" || replayCommSettings.mode == "queue"))
   {
-    OSD::DrawSlippiPlaybackControls();
     g_playbackStatus->startThreads();
   }
 }
