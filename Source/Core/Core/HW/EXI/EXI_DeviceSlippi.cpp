@@ -2002,7 +2002,7 @@ void CEXISlippi::handleUpdateAppRequest()
 #ifdef __APPLE__
   CriticalAlertT("Automatic updates are not available for macOS, please update manually.");
 #else
-  // main_frame->LowerRenderWindow(); SLIPPITODO: figure out replacement // mainwindow hide render widget
+  Host_LowerWindow();
   user->UpdateApp();
   Host_Exit();
 #endif
