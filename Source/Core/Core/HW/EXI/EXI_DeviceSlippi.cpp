@@ -1663,7 +1663,7 @@ void CEXISlippi::startFindMatch(u8* payload)
   // While we do have another condition that checks characters after being connected, it's nice to give
   // someone an early error before they even queue so that they wont enter the queue and make someone
   // else get force removed from queue and have to requeue
-  auto directMode = SlippiMatchmaking::OnlinePlayMode::DIRECT;
+  const auto directMode = SlippiMatchmaking::OnlinePlayMode::DIRECT;
   if (search.mode != directMode && localSelections.characterId >= 26)
   {
     forcedError = "The character you selected is not allowed in this mode";
@@ -1792,7 +1792,7 @@ void CEXISlippi::prepareOnlineMatchState()
   std::string p1Name = "";
   std::string p2Name = "";
 
-  auto directMode = SlippiMatchmaking::OnlinePlayMode::DIRECT;
+  const auto directMode = SlippiMatchmaking::OnlinePlayMode::DIRECT;
 
   if (localPlayerReady && remotePlayerReady)
   {
@@ -1870,7 +1870,6 @@ void CEXISlippi::prepareOnlineMatchState()
 
     // Turn pause on in direct, off in everything else
     u8* gameBitField3 = (u8*)& onlineMatchBlock[2];
-    auto directMode = SlippiMatchmaking::OnlinePlayMode::DIRECT;
     *gameBitField3 = lastSearch.mode == directMode ? *gameBitField3 & 0xF7 : *gameBitField3 | 0x8;
   }
 
