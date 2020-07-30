@@ -13,106 +13,117 @@ on:
       - "**.ini"
 
 jobs:
-#   windows64-netplay:
-#     env:
-#       DXSDK_DIR: "C:\\Program Files (x86)\\Microsoft DirectX SDK (June 2010)\\"
-#     name: "Windows Netplay"
-#     runs-on: windows-2019
-#     steps:
-#       - name: "Remove Redistributable"
-#         shell: cmd
-#         run: |
-#           MsiExec.exe /passive /X{F0C3E5D1-1ADE-321E-8167-68EF0DE699A5}  
-#       - name: "Setup MSBuild"
-#         uses: microsoft/setup-msbuild@v1   
-#       - name: "Install DirectX SDK"
-#         shell: powershell
-#         run: |
-#           choco install directx-sdk
-#       - name: "Checkout"
-#         uses: actions/checkout@v2.3.1
-#       - name: 'Fetch Git Tags'
-#         if: success()
-#         shell: bash
-#         run: |
-#           git fetch --prune --unshallow
-#           echo ::set-env name=GIT_BRANCH::$(git rev-parse --abbrev-ref HEAD)
-#           echo ::set-env name=GIT_HASH::$(git rev-parse --short HEAD)
-#           echo ::set-env name=GIT_TAG::$(git describe --tags --abbrev=0)
-#           echo ::set-env name=CURR_DATE::$(date +%Y-%m-%d)
-#       - name: "Build Netplay Dolphin"
-#         shell: cmd
-#         run: |
-#           msbuild /p:Configuration=Release /p:Platform=x64 ${{ github.workspace }}\Source\Dolphin.sln
-#       - name: "Package Netplay"
-#         working-directory: ${{ github.workspace }}
-#         run: |
-#           $env:FILE_NAME="${{ env.CURR_DATE }}-${{ env.OBS_GIT_HASH }}-${{ env.OBS_GIT_TAG }}-win64-netplay.zip"
-#           mkdir artifact
-#           Xcopy /Y /E /I .\Data\Sys .\Binary\x64\Sys
-#           cd .\Binary\x64\
-#           fsutil file createnew portable.txt 0
-#           fsutil file createnew FIX-VCRUNTIME140-ERROR.txt 0
-#           echo "Download and install this: https://aka.ms/vs/16/release/vc_redist.x64.exe" > .\FIX-VCRUNTIME140-ERROR.txt
-#           7z a ${env:FILE_NAME} .\*
-#           move ${env:FILE_NAME} ..\..\artifact\
-#       - name: "Publish"
-#         if: success()
-#         uses: actions/upload-artifact@v2-preview
-#         with:
-#           name: "windows64-netplay"
-#           path: "./artifact/"
-#   windows64-playback:
-#     env:
-#       DXSDK_DIR: "C:\\Program Files (x86)\\Microsoft DirectX SDK (June 2010)\\"
-#     name: "Windows Playback"
-#     runs-on: windows-2019
-#     steps:
-#       - name: "Remove Redistributable"
-#         shell: cmd
-#         run: |
-#           MsiExec.exe /passive /X{F0C3E5D1-1ADE-321E-8167-68EF0DE699A5}  
-#       - name: "Setup MSBuild"
-#         uses: microsoft/setup-msbuild@v1   
-#       - name: "Install DirectX SDK"
-#         shell: powershell
-#         run: |
-#           choco install directx-sdk
-#       - name: "Checkout"
-#         uses: actions/checkout@v2.3.1
-#       - name: 'Fetch Git Tags'
-#         if: success()
-#         shell: bash
-#         run: |
-#           git fetch --prune --unshallow
-#           echo ::set-env name=GIT_BRANCH::$(git rev-parse --abbrev-ref HEAD)
-#           echo ::set-env name=GIT_HASH::$(git rev-parse --short HEAD)
-#           echo ::set-env name=GIT_TAG::$(git describe --tags --abbrev=0)
-#           echo ::set-env name=CURR_DATE::$(date +%Y-%m-%d)
-#       - name: "Build Playback Dolphin"
-#         shell: cmd
-#         run: |
-#           msbuild /p:Configuration=ReleasePlayback /p:Platform=x64 ${{ github.workspace }}\Source\Dolphin.sln
-#       - name: "Package Playback"
-#         if: success()
-#         working-directory: ${{ github.workspace }}
-#         run: |
-#           $env:FILE_NAME="${{ env.CURR_DATE }}-${{ env.OBS_GIT_HASH }}-${{ env.OBS_GIT_TAG }}-win64-playback.zip"
-#           mkdir artifact
-#           git clone https://github.com/project-slippi/slippi-desktop-app
-#           Xcopy /Y /E /I .\Data\Sys .\Binary\x64\Sys
-#           Xcopy /Y /E /I .\slippi-desktop-app\app\dolphin-dev\overwrite\Sys .\Binary\x64\Sys
-#           Xcopy /Y /E /I .\slippi-desktop-app\app\dolphin-dev\overwrite\User .\Binary\x64\User
-#           cd .\Binary\x64\
-#           fsutil file createnew portable.txt 0
-#           7z a ${env:FILE_NAME} .\*
-#           move ${env:FILE_NAME} ..\..\artifact\
-#       - name: "Publish"
-#         if: success()
-#         uses: actions/upload-artifact@v2-preview
-#         with:
-#           name: "windows64-playback"
-#           path: "./artifact/"
+  windows64-netplay:
+    env:
+      DXSDK_DIR: "C:\\Program Files (x86)\\Microsoft DirectX SDK (June 2010)\\"
+    name: "Windows Netplay"
+    runs-on: windows-2019
+    steps:
+      - name: "Remove Redistributable"
+        shell: cmd
+        run: |
+          MsiExec.exe /passive /X{F0C3E5D1-1ADE-321E-8167-68EF0DE699A5}  
+      - name: "Setup MSBuild"
+        uses: microsoft/setup-msbuild@v1   
+      - name: "Install DirectX SDK"
+        shell: powershell
+        run: |
+          choco install directx-sdk
+      - name: "Checkout"
+        uses: actions/checkout@v2.3.1
+      - name: 'Fetch Git Tags'
+        if: success()
+        shell: bash
+        run: |
+          git fetch --prune --unshallow
+          echo ::set-env name=GIT_BRANCH::$(git rev-parse --abbrev-ref HEAD)
+          echo ::set-env name=GIT_HASH::$(git rev-parse --short HEAD)
+          echo ::set-env name=GIT_TAG::$(git describe --tags --abbrev=0)
+          echo ::set-env name=CURR_DATE::$(date +%Y-%m-%d)
+      - name: "Build Netplay Dolphin"
+        shell: cmd
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir build
+          cd build
+          cmake -DSLIPPI_PLAYBACK=false ..
+          dir
+          cd Source
+          msbuild.exe /v:m /p:Platform=x64 /p:Configuration=Release dolphin-emu.sln
+      - name: "Package Netplay"
+        working-directory: ${{ github.workspace }}
+        run: |
+          $env:FILE_NAME="${{ env.CURR_DATE }}-${{ env.OBS_GIT_HASH }}-${{ env.OBS_GIT_TAG }}-win64-netplay.zip"
+          mkdir artifact
+          Xcopy /Y /E /I .\Data\Sys .\Binary\x64\Sys
+          cd .\Binary\x64\
+          fsutil file createnew portable.txt 0
+          fsutil file createnew FIX-VCRUNTIME140-ERROR.txt 0
+          echo "Download and install this: https://aka.ms/vs/16/release/vc_redist.x64.exe" > .\FIX-VCRUNTIME140-ERROR.txt
+          7z a ${env:FILE_NAME} .\*
+          move ${env:FILE_NAME} ..\..\artifact\
+      - name: "Publish"
+        if: success()
+        uses: actions/upload-artifact@v2-preview
+        with:
+          name: "windows64-netplay"
+          path: "./artifact/"
+  windows64-playback:
+    env:
+      DXSDK_DIR: "C:\\Program Files (x86)\\Microsoft DirectX SDK (June 2010)\\"
+    name: "Windows Playback"
+    runs-on: windows-2019
+    steps:
+      - name: "Remove Redistributable"
+        shell: cmd
+        run: |
+          MsiExec.exe /passive /X{F0C3E5D1-1ADE-321E-8167-68EF0DE699A5}  
+      - name: "Setup MSBuild"
+        uses: microsoft/setup-msbuild@v1   
+      - name: "Install DirectX SDK"
+        shell: powershell
+        run: |
+          choco install directx-sdk
+      - name: "Checkout"
+        uses: actions/checkout@v2.3.1
+      - name: 'Fetch Git Tags'
+        if: success()
+        shell: bash
+        run: |
+          git fetch --prune --unshallow
+          echo ::set-env name=GIT_BRANCH::$(git rev-parse --abbrev-ref HEAD)
+          echo ::set-env name=GIT_HASH::$(git rev-parse --short HEAD)
+          echo ::set-env name=GIT_TAG::$(git describe --tags --abbrev=0)
+          echo ::set-env name=CURR_DATE::$(date +%Y-%m-%d)
+      - name: "Build Playback Dolphin"
+        shell: cmd
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          dir
+          cd Source
+          msbuild.exe /v:m /p:Platform=x64 /p:Configuration=Release dolphin-emu.sln
+      - name: "Package Playback"
+        if: success()
+        working-directory: ${{ github.workspace }}
+        run: |
+          $env:FILE_NAME="${{ env.CURR_DATE }}-${{ env.OBS_GIT_HASH }}-${{ env.OBS_GIT_TAG }}-win64-playback.zip"
+          mkdir artifact
+          git clone https://github.com/project-slippi/slippi-desktop-app
+          Xcopy /Y /E /I .\Data\Sys .\Binary\x64\Sys
+          Xcopy /Y /E /I .\slippi-desktop-app\app\dolphin-dev\overwrite\Sys .\Binary\x64\Sys
+          Xcopy /Y /E /I .\slippi-desktop-app\app\dolphin-dev\overwrite\User .\Binary\x64\User
+          cd .\Binary\x64\
+          fsutil file createnew portable.txt 0
+          7z a ${env:FILE_NAME} .\*
+          move ${env:FILE_NAME} ..\..\artifact\
+      - name: "Publish"
+        if: success()
+        uses: actions/upload-artifact@v2-preview
+        with:
+          name: "windows64-playback"
+          path: "./artifact/"
   ubuntu64-netplay:
       name: "Ubuntu Netplay"
       runs-on: ubuntu-18.04
