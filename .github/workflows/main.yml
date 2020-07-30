@@ -31,6 +31,8 @@ jobs:
           choco install directx-sdk
       - name: "Checkout"
         uses: actions/checkout@v2.3.1
+        with:
+          submodules: recursive
       - name: 'Fetch Git Tags'
         if: success()
         shell: bash
@@ -47,8 +49,8 @@ jobs:
           mkdir build
           cd build
           cmake -DSLIPPI_PLAYBACK=false ..
-          dir
           cd Source
+          dir
           msbuild.exe /v:m /p:Platform=x64 /p:Configuration=Release dolphin-emu.sln
       - name: "Package Netplay"
         working-directory: ${{ github.workspace }}
@@ -86,6 +88,8 @@ jobs:
           choco install directx-sdk
       - name: "Checkout"
         uses: actions/checkout@v2.3.1
+        with:
+          submodules: recursive
       - name: 'Fetch Git Tags'
         if: success()
         shell: bash
@@ -101,7 +105,6 @@ jobs:
           mkdir build
           cd build
           cmake ..
-          dir
           cd Source
           msbuild.exe /v:m /p:Platform=x64 /p:Configuration=Release dolphin-emu.sln
       - name: "Package Playback"
