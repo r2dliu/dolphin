@@ -48,7 +48,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DSLIPPI_PLAYBACK=false ..
+          "C:\PROGRAM FILES (X86)\MICROSOFT VISUAL STUDIO\2019\COMMUNITY\COMMON7\IDE\COMMONEXTENSIONS\MICROSOFT\CMAKE\CMake\bin\cmake.exe"  -G "Ninja" -DQt5_DIR:STRING="../Externals/Qt/Qt5.14.1/msvc2019_64/lib/cmake/Qt5" -DCMAKE_C_COMPILER:FILEPATH="C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/bin/HostX64/x64/cl.exe" -DCMAKE_CXX_COMPILER:FILEPATH="C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/bin/HostX64/x64/cl.exe"  -DCMAKE_BUILD_TYPE="Release" -DCMAKE_MAKE_PROGRAM="C:\PROGRAM FILES (X86)\MICROSOFT VISUAL STUDIO\2019\COMMUNITY\COMMON7\IDE\COMMONEXTENSIONS\MICROSOFT\CMAKE\Ninja\ninja.exe" ..
           msbuild.exe /v:m /p:Platform=x64 /p:Configuration=Release dolphin-emu.sln
       - name: "Package Netplay"
         working-directory: ${{ github.workspace }}
