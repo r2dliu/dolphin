@@ -205,7 +205,120 @@ bool ButtonCustom(const char* label, const ImVec2& size_arg, ImGuiButtonFlags fl
   return pressed;
 }
 
-bool SliderCustomBehavior(const ImRect& bb, ImGuiID id, int* v, int v_min, int v_max, float power, ImGuiSliderFlags flags, ImVec4 color, ImVec2 valuesize, const char* label, char* value)
+bool VolumeBarBehavior(const ImRect& bb, ImGuiID id, int* v, int v_min, int v_max, float power, ImGuiSliderFlags flags, ImVec4 color, ImVec2 valuesize, const char* label, char* value)
+{
+  ImGuiContext& g = *GImGui;
+  const ImGuiStyle& style = g.Style;
+  ImGuiWindow* window = ImGui::GetCurrentWindow();
+  const ImGuiAxis axis = ImGuiAxis_Y;
+  const bool is_decimal = false; // TODO handle other types
+  const bool is_power = (power != 1.0f) && is_decimal;
+
+  const float slider_sz = (bb.Max[axis] - bb.Min[axis]);
+  const float slider_usable_pos_min = bb.Min[axis];
+  const float slider_usable_pos_max = bb.Max[axis];
+
+  float linear_zero_pos = 0.0f;
+  if (is_power && v_min * v_max < 0.0f)
+  {
+    const float linear_dist_min_to_0 = ImPow(v_min >= 0 ? (float)v_min : -(float)v_min, (float)1.0f / power);
+    const float linear_dist_max_to_0 = ImPow(v_max >= 0 ? (float)v_max : -(float)v_max, (float)1.0f / power);
+    linear_zero_pos = (float)(linear_dist_min_to_0 / (linear_dist_min_to_0 + linear_dist_max_to_0));
+  }
+  else
+  {
+    linear_zero_pos = v_min < 0.0f ? 1.0f : 0.0f;
+  }
+
+  const bool isDown = g.IO.MouseDown[0];
+  bool value_changed = false;
+  bool isActive = g.ActiveId == id;
+  static bool isHeld = false;
+
+  if (!isDown && isActive)
+    ImGui::ClearActiveID();
+
+  // Calculate mouse position if hovered
+  int new_value = 0;
+  if (isHeld) {
+    const float mouse_abs_pos = g.IO.MousePos[axis];
+    float clicked_t = 1.0f - (slider_sz > 0.0f) ? ImClamp((mouse_abs_pos - slider_usable_pos_min) / slider_sz, 0.0f, 1.0f) : 0.0f;
+
+    new_value = ImLerp(v_min, v_max, clicked_t);
+
+    // Only change value if left mouse button is actually down
+    if (*v != new_value && isDown)
+    {
+      *v = new_value;
+    }
+  }
+
+  if (isHeld) {
+    isHeld = isHeld && isDown;
+    // If no longer held, slider was let go. Trigger mark edited
+    if (!isHeld) {
+      value_changed = true;
+      g_playbackStatus->targetFrameNum = *v;
+      INFO_LOG(SLIPPI, "Seeking to frame %d!", g_playbackStatus->targetFrameNum);
+    }
+  }
+  else
+    isHeld = hovered && isDown;
+
+  float new_grab_t = ImGui::SliderCalcRatioFromValueT<int, float>(ImGuiDataType_S32, new_value, v_min, v_max, power, linear_zero_pos);
+  float curr_grab_t = ImGui::SliderCalcRatioFromValueT<int, float>(ImGuiDataType_S32, *v, v_min, v_max, power, linear_zero_pos);
+
+  if (axis == ImGuiAxis_Y) {
+    new_grab_t = 1.0f - new_grab_t;
+    curr_grab_t = 1.0f - curr_grab_t;
+  }
+  const float new_grab_pos = ImLerp(slider_usable_pos_min, slider_usable_pos_max, new_grab_t);
+  const float curr_grab_pos = ImLerp(slider_usable_pos_min, slider_usable_pos_max, curr_grab_t);
+  ImRect new_grab_bb;
+  ImRect curr_grab_bb;
+  if (axis == ImGuiAxis_X) {
+    new_grab_bb = ImRect(ImVec2(new_grab_pos, bb.Min.y), ImVec2(new_grab_pos, bb.Max.y));
+    curr_grab_bb = ImRect(ImVec2(curr_grab_pos, bb.Min.y), ImVec2(curr_grab_pos, bb.Max.y));
+  }
+  else
+  {
+    new_grab_bb = ImRect(ImVec2(bb.Min.x, new_grab_pos), ImVec2(bb.Max.x, new_grab_pos));
+    curr_grab_bb = ImRect(ImVec2(bb.Min.x, curr_grab_pos), ImVec2(bb.Max.x, curr_grab_pos));
+  }
+
+  // Draw all the things
+
+  // Darken screen when seeking
+  if (isHeld)
+    window->DrawList->AddRectFilled(ImVec2(0, 0), ImGui::GetIO().DisplaySize, ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.6f)));
+
+  window->DrawList->AddRectFilled(ImVec2(0, ImGui::GetWindowHeight() - 36), ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight()), ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.75f * style.Alpha)));
+
+  // Grey background line
+  window->DrawList->AddLine(ImVec2(bb.Min.x, bb.Max.y - 6), ImVec2(bb.Max.x, bb.Max.y - 6), ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f, 1.0f, 1.0f, 0.5f * style.Alpha)), 4);
+
+  // Whiter, more opaque line up to mouse position
+  if (hovered && !isHeld)
+    window->DrawList->AddLine(ImVec2(bb.Min.x, bb.Max.y - 6), ImVec2(new_grab_bb.Min.x, bb.Max.y - 6), ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f, 1.0f, 1.0f, style.Alpha)), 4);
+
+  if (hovered || isHeld)
+    window->DrawList->AddText(ImVec2(new_grab_bb.GetCenter().x - valuesize.x / 2, bb.Max.y - 30), ImColor(255, 255, 255), GetTimeForFrame(new_value).c_str());
+
+  // Colored line, circle indicator, and text
+  if (isHeld) {
+    window->DrawList->AddLine(ImVec2(bb.Min.x, bb.Max.y - 6), ImVec2(new_grab_bb.Min.x, bb.Max.y - 6), ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 1.0f, 0.0f, 1.0)), 4);
+    window->DrawList->AddCircleFilled(ImVec2(new_grab_bb.Min.x, new_grab_bb.Max.y - 6), 6, ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 1.0f, 0.0f, 1.0)));
+  }
+
+  // Progress bar
+  if (!isHeld)
+    frame = (g_playbackStatus->targetFrameNum == INT_MAX) ? g_playbackStatus->currentPlaybackFrame : g_playbackStatus->targetFrameNum;
+  window->DrawList->AddLine(ImVec2(bb.Min.x, bb.Max.y - 6), ImVec2(curr_grab_bb.Min.x, bb.Max.y - 6), ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 1.0f, 0.0f, style.Alpha)), 4);
+
+  return value_changed;
+}
+
+bool SeekBarBehavior(const ImRect& bb, ImGuiID id, int* v, int v_min, int v_max, float power, ImGuiSliderFlags flags, ImVec4 color, ImVec2 valuesize, const char* label, char* value)
 {
   ImGuiContext& g = *GImGui;
   const ImGuiStyle& style = g.Style;
@@ -343,7 +456,7 @@ bool SliderCustomBehavior(const ImRect& bb, ImGuiID id, int* v, int v_min, int v
   return value_changed;
 }
 
-bool SliderCustom(const char* label, ImVec4 color, int* v, int v_min, int v_max, float power, const char* format)
+bool SeekBar(const char* label, ImVec4 color, int* v, int v_min, int v_max, float power, const char* format)
 {
   ImGuiWindow* window = ImGui::GetCurrentWindow();
   if (window->SkipItems)
@@ -382,7 +495,54 @@ bool SliderCustom(const char* label, ImVec4 color, int* v, int v_min, int v_max,
 
   char value_buf[64];
   const char* value_buf_end = value_buf + ImFormatString(value_buf, IM_ARRAYSIZE(value_buf), format, *v);
-  const bool value_changed = SliderCustomBehavior(frame_bb, id, v, v_min, v_max, power, ImGuiSliderFlags_None, color, ImGui::CalcTextSize(value_buf, NULL, true), value_buf_end, value_buf);
+  const bool value_changed = SeekBarBehavior(frame_bb, id, v, v_min, v_max, power, ImGuiSliderFlags_None, color, ImGui::CalcTextSize(value_buf, NULL, true), value_buf_end, value_buf);
+
+  if (label_size.x > 0.0f)
+    ImGui::RenderText(ImVec2(frame_bb.Min.x + style.ItemInnerSpacing.x, frame_bb.Min.y + 25), label);
+
+  return value_changed;
+}
+
+bool VolumeBar(const char* label, ImVec4 color, int* v, int v_min, int v_max, float power, const char* format)
+{
+  ImGuiWindow* window = ImGui::GetCurrentWindow();
+  if (window->SkipItems)
+    return false;
+
+  ImGuiContext& g = *GImGui;
+  const ImGuiStyle& style = g.Style;
+  const ImGuiID id = window->GetID(label);
+  const float w = ImGui::CalcItemWidth();
+
+  const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true) * 1.0f;
+  const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + ImVec2(w, label_size.y));
+
+  const bool hovered = ImGui::ItemHoverable(frame_bb, id);
+  if (hovered)
+    ImGui::SetHoveredID(id);
+
+  if (!format)
+    format = "%d";
+
+  bool start_text_input = false;
+  const bool tab_focus_requested = ImGui::FocusableItemRegister(window, g.ActiveId == id);
+  if (tab_focus_requested || (hovered && g.IO.MouseClicked[0]))
+  {
+    ImGui::SetActiveID(id, window);
+    ImGui::FocusWindow(window);
+
+    if (tab_focus_requested || g.IO.KeyCtrl)
+    {
+      start_text_input = true;
+      g.ScalarAsInputTextId = 0;
+    }
+  }
+  if (start_text_input || (g.ActiveId == id && g.ScalarAsInputTextId == id))
+    return ImGui::InputScalarAsWidgetReplacement(frame_bb, id, label, ImGuiDataType_S32, v, format);
+
+  char value_buf[64];
+  const char* value_buf_end = value_buf + ImFormatString(value_buf, IM_ARRAYSIZE(value_buf), format, *v);
+  const bool value_changed = VolumeBarBehavior(frame_bb, id, v, v_min, v_max, power, ImGuiSliderFlags_None, color, ImGui::CalcTextSize(value_buf, NULL, true), value_buf_end, value_buf);
 
   if (label_size.x > 0.0f)
     ImGui::RenderText(ImVec2(frame_bb.Min.x + style.ItemInnerSpacing.x, frame_bb.Min.y + 25), label);
@@ -423,7 +583,7 @@ void DrawSlippiPlaybackControls()
   {
     ImGui::PushItemWidth(ImGui::GetWindowWidth());
     ImGui::SetCursorPos(ImVec2(0.0f, ImGui::GetWindowHeight() - 44));
-    if (SliderCustom("", ImVec4(1.0f, 0.0f, 0.0f, 1.0f), &frame, Slippi::PLAYBACK_FIRST_SAVE, g_playbackStatus->lastFrame, 1.0, "%d")) {
+    if (SeekBar("", ImVec4(1.0f, 0.0f, 0.0f, 1.0f), &frame, Slippi::PLAYBACK_FIRST_SAVE, g_playbackStatus->lastFrame, 1.0, "%d")) {
       INFO_LOG(SLIPPI, "seeking to %d", g_playbackStatus->targetFrameNum);
       Host_PlaybackSeek();
     }
@@ -432,10 +592,14 @@ void DrawSlippiPlaybackControls()
 
     ImGui::SetCursorPos(ImVec2(0.0f, ImGui::GetWindowHeight() - 30));
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.45f));
+
     //if (ButtonCustom(paused ? ICON_FA_PLAY : ICON_FA_PAUSE, ImVec2(40.0f, 32.0f))) {
     //  INFO_LOG(SLIPPI, "playing");
     //}
     //ImGui::SameLine(0.0f, 5.0f);
+
+
+    // Jump back
     if (ButtonCustom(ICON_FA_FAST_BACKWARD, ImVec2(32.0f, 32.0f))) {
       INFO_LOG(SLIPPI, "fast back");
       if (g_playbackStatus->targetFrameNum == INT_MAX) {
@@ -443,7 +607,17 @@ void DrawSlippiPlaybackControls()
         Host_PlaybackSeek();
       }
     }
-    ImGui::SameLine(0.0f, 0.0f);
+    if (ImGui::IsItemHovered()) {
+      ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(6.0f, ImGui::GetWindowHeight() - 62.0f),
+        ImVec2(175.0f, ImGui::GetWindowHeight() - 42.0f),
+        ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.9f)));
+      ImGui::SetCursorPos(ImVec2(8.0f, ImGui::GetWindowHeight() - 60.0f));
+      ImGui::Text("Jump Back (Shift + Left Arrow)");
+    }
+
+    // Step back
+    ImGui::SetCursorPos(ImVec2(32.0f, ImGui::GetWindowHeight() - 30));
     if (ButtonCustom(ICON_FA_STEP_BACKWARD, ImVec2(32.0f, 32.0f))) {
       INFO_LOG(SLIPPI, "step back");
       if (g_playbackStatus->targetFrameNum == INT_MAX) {
@@ -451,7 +625,17 @@ void DrawSlippiPlaybackControls()
         Host_PlaybackSeek();
       }
     }
-    ImGui::SameLine(0.0f, 0.0f);
+    if (ImGui::IsItemHovered()) {
+      ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(6.0f, ImGui::GetWindowHeight() - 62.0f),
+        ImVec2(131.0f, ImGui::GetWindowHeight() - 42.0f),
+        ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.9f)));
+      ImGui::SetCursorPos(ImVec2(8.0f, ImGui::GetWindowHeight() - 60.0f));
+      ImGui::Text("Step Back (Left Arrow)");
+    }
+
+    // Step forward
+    ImGui::SetCursorPos(ImVec2(64.0f, ImGui::GetWindowHeight() - 30));
     if (ButtonCustom(ICON_FA_STEP_FORWARD, ImVec2(32.0f, 32.0f))) {
       INFO_LOG(SLIPPI, "step forward");
       if (g_playbackStatus->targetFrameNum == INT_MAX) {
@@ -459,7 +643,17 @@ void DrawSlippiPlaybackControls()
         Host_PlaybackSeek();
       }
     }
-    ImGui::SameLine(0.0f, 0.0f);
+    if (ImGui::IsItemHovered()) {
+      ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(12.0f, ImGui::GetWindowHeight() - 62.0f),
+        ImVec2(162.0f, ImGui::GetWindowHeight() - 42.0f),
+        ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.9f)));
+      ImGui::SetCursorPos(ImVec2(14.0f, ImGui::GetWindowHeight() - 60.0f));
+      ImGui::Text("Step Forward (Right Arrow)");
+    }
+
+    // Jump forward
+    ImGui::SetCursorPos(ImVec2(96.0f, ImGui::GetWindowHeight() - 30));
     if (ButtonCustom(ICON_FA_FAST_FORWARD, ImVec2(32.0f, 32.0f))) {
       INFO_LOG(SLIPPI, "fast_foward");
       if (g_playbackStatus->targetFrameNum == INT_MAX) {
@@ -467,44 +661,68 @@ void DrawSlippiPlaybackControls()
         Host_PlaybackSeek();
       }
     }
-    ImGui::SameLine(ImGui::GetWindowWidth() - 64.0f);
+    if (ImGui::IsItemHovered()) {
+      ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(30.0f, ImGui::GetWindowHeight() - 62.0f),
+        ImVec2(222.0f, ImGui::GetWindowHeight() - 42.0f),
+        ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.9f)));
+      ImGui::SetCursorPos(ImVec2(32.0f, ImGui::GetWindowHeight() - 60.0f));
+      ImGui::Text("Jump Forward (Shift + Right Arrow)");
+    }
+
+    // Help
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 64.0f, ImGui::GetWindowHeight() - 30));
     if (ButtonCustom(ICON_FA_QUESTION_CIRCLE, ImVec2(32.0f, 32.0f))) {
       showHelp = !showHelp;
     }
-    ImGui::SameLine(ImGui::GetWindowWidth() - 32.0f);
-    if (ButtonCustom(ICON_FA_EXPAND, ImVec2(32.0f, 32.0f))) {
-      INFO_LOG(SLIPPI, "fullscreen");
-      Host_Fullscreen();
-    }
-
-    if (g_playbackStatus->isHardFFW) {
-      INFO_LOG(SLIPPI, "Ffw");
-    }
-
     if (showHelp) {
       ImGui::GetWindowDrawList()->AddRectFilled(
         ImVec2(ImGui::GetWindowWidth() - 300.0f, ImGui::GetWindowHeight() - 200.0f),
         ImVec2(ImGui::GetWindowWidth() - 50.0f, ImGui::GetWindowHeight() - 40.0f),
         ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.8f * style.Alpha)));
-        ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 190.0f));
-        ImGui::Text("Play/Pause: Spacebar");
-        ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 170.0f));
-        ImGui::Text("Step Back (5s): Left Arrow");
-        ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 150.0f));
-        ImGui::Text("Step Forward (5s): Right Arrow");
-        ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 130.0f));
-        ImGui::Text("Jump Back (20s): Shift + Left Arrow");
-        ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 110.0f));
-        ImGui::Text("Jump Forward (20s): Shift + Right Arrow");
-        ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 90.0f));
-        ImGui::Text("Frame Advance: Period");
-        ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 70.0f));
-        ImGui::Text("Big jumps/seeks may take several seconds.");
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 190.0f));
+      ImGui::Text("Play/Pause: Spacebar");
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 170.0f));
+      ImGui::Text("Step Back (5s): Left Arrow");
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 150.0f));
+      ImGui::Text("Step Forward (5s): Right Arrow");
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 130.0f));
+      ImGui::Text("Jump Back (20s): Shift + Left Arrow");
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 110.0f));
+      ImGui::Text("Jump Forward (20s): Shift + Right Arrow");
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 90.0f));
+      ImGui::Text("Frame Advance: Period");
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 290.0f, ImGui::GetWindowHeight() - 70.0f));
+      ImGui::Text("Big jumps/seeks may take several seconds.");
+    }
+    if (ImGui::IsItemHovered()) {
+      ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(ImGui::GetWindowWidth() - 75.0f, ImGui::GetWindowHeight() - 62.0f),
+        ImVec2(ImGui::GetWindowWidth() - 16.0f, ImGui::GetWindowHeight() - 42.0f),
+        ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.9f)));
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 73.0f, ImGui::GetWindowHeight() - 60.0f));
+      ImGui::Text("View Help");
     }
 
+    // Fullscreen
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 32.0f, ImGui::GetWindowHeight() - 30));
+    if (ButtonCustom(ICON_FA_EXPAND, ImVec2(32.0f, 32.0f))) {
+      INFO_LOG(SLIPPI, "fullscreen");
+      Host_Fullscreen();
+    }
+    if (ImGui::IsItemHovered()) {
+      ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(ImGui::GetWindowWidth() - 172.0f, ImGui::GetWindowHeight() - 62.0f),
+        ImVec2(ImGui::GetWindowWidth() - 6.0f, ImGui::GetWindowHeight() - 42.0f),
+        ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 0.9f)));
+      ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 170.0f, ImGui::GetWindowHeight() - 60.0f));
+      ImGui::Text("Toggle Fullscreen (Alt + Enter)");
+    }
+    
+
     ImGui::PopStyleVar();
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-    ImGui::SetCursorPos(ImVec2(135.0f, window->DC.CursorPosPrevLine.y + 6.0f));
+    /*ImGuiWindow* window = ImGui::GetCurrentWindow();*/
+    ImGui::SetCursorPos(ImVec2(135.0f, ImGui::GetWindowHeight() - 23.5f));
 
     auto playbackTime = GetTimeForFrame(g_playbackStatus->currentPlaybackFrame);
     auto endTime = GetTimeForFrame(g_playbackStatus->lastFrame);
