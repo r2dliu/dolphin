@@ -1,7 +1,8 @@
 #!/bin/bash -e
-# build-online-appimage.sh
+# build-appimage.sh
 
 ZSYNC_STRING="gh-releases-zsync|project-slippi|Ishiiruka|latest|Slippi_Online-x86_64.AppImage.zsync"
+NETPLAY_APPIMAGE_STRING="Slippi_Online-x86_64.AppImage"
 PLAYBACK_APPIMAGE_STRING="Slippi_Playback-x86_64.AppImage"
 
 LINUXDEPLOY_PATH="https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous"
@@ -20,6 +21,7 @@ DESKTOP_APP_URL="https://github.com/project-slippi/slippi-desktop-app"
 DESKTOP_APP_SYS_PATH="./slippi-desktop-app/app/dolphin-dev/overwrite/Sys"
 
 APPDIR_BIN="./AppDir/usr/bin"
+APPDIR_HOOKS="./AppDir/apprun-hooks"
 
 # Grab various appimage binaries from GitHub if we don't have them
 if [ ! -e ./Tools/linuxdeploy ]; then
@@ -31,12 +33,16 @@ if [ ! -e ./Tools/linuxdeploy-update-plugin ]; then
 	chmod +x ./Tools/linuxdeploy-update-plugin
 fi
 if [ ! -e ./Tools/appimageupdatetool ]; then
-	wget ${UPDATEPLUG_URL} -O ./Tools/appimageupdatetool
+	wget ${UPDATETOOL_URL} -O ./Tools/appimageupdatetool
 	chmod +x ./Tools/appimageupdatetool
 fi
 
 # Delete the AppDir folder to prevent build issues
 rm -rf ./AppDir/
+
+# Add the linux-env script to the AppDir prior to running linuxdeploy
+#mkdir -p ${APPDIR_HOOKS}
+#cp Data/linux-env.sh ${APPDIR_HOOKS}
 
 # Build the AppDir directory for this image
 mkdir -p AppDir
@@ -50,19 +56,12 @@ mkdir -p AppDir
 cp -r Data/Sys ${APPDIR_BIN}
 
 # Build type
-if [ -z "$1" ] # Netplay
-    then
-        echo "Using Netplay build config"
-		
-		# Package up the update tool within the AppImage
-		cp ./Tools/appimageupdatetool ./AppDir/usr/bin/
-
-		# Bake an AppImage with the update metadata
-		UPDATE_INFORMATION="${ZSYNC_STRING}" \
-			./Tools/linuxdeploy-update-plugin --appdir=./AppDir/
-elif [ "$1" == "playback" ] # Playback
+if [ "$1" == "playback" ] # Playback
     then
         echo "Using Playback build config"
+
+		rm -f ${PLAYBACK_APPIMAGE_STRING}
+
 		if [ -d "slippi-desktop-app" ]
 			then
 				pushd slippi-desktop-app
@@ -78,4 +77,15 @@ elif [ "$1" == "playback" ] # Playback
 
 		OUTPUT="${PLAYBACK_APPIMAGE_STRING}" \
 		./Tools/linuxdeploy-update-plugin --appdir=./AppDir/
+else
+		echo "Using Netplay build config"
+
+		rm -f ${NETPLAY_APPIMAGE_STRING}
+		
+		# Package up the update tool within the AppImage
+		cp ./Tools/appimageupdatetool ./AppDir/usr/bin/
+
+		# Bake an AppImage with the update metadata
+		UPDATE_INFORMATION="${ZSYNC_STRING}" \
+			./Tools/linuxdeploy-update-plugin --appdir=./AppDir/
 fi
