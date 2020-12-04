@@ -149,7 +149,7 @@ jobs:
         if: success()
         working-directory: ${{ github.workspace }}
         run: |
-          ./build-linux.sh ${{ matrix.build_config }}
+          chmod +x ./build-linux.sh && ./build-linux.sh ${{ matrix.build_config }}
       - name: "Build ${{ matrix.build_type }} AppImage"
         if: success()
         working-directory: ${{ github.workspace }}
