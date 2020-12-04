@@ -1,7 +1,7 @@
 #!/bin/bash -e
 # build-linux.sh
 
-CMAKE_FLAGS='-DLINUX_LOCAL_DEV=true'
+CMAKE_FLAGS='-G "Ninja" -DLINUX_LOCAL_DEV=true'
 
 DESKTOP_APP_URL="https://github.com/project-slippi/slippi-desktop-app"
 DESKTOP_APP_SYS_PATH="./slippi-desktop-app/app/dolphin-dev/overwrite/Sys"
