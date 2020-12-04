@@ -21,10 +21,10 @@ jobs:
         include:
           - build_type: Netplay
             artifact_name: windows64-netplay
-            build_config: -DCMAKE_BUILD_TYPE="Release" -DSLIPPI_PLAYBACK=false
+            build_config: -DCMAKE_BUILD_TYPE="Release" -DQt5_DIR:STRING="../Externals/Qt/Qt5.14.1/msvc2019_64/lib/cmake/Qt5" -DSLIPPI_PLAYBACK=false
           - build_type: Playback
             artifact_name: windows64-playback
-            build_config: -DCMAKE_BUILD_TYPE="Release"
+            build_config: -DCMAKE_BUILD_TYPE="Release" -DQt5_DIR:STRING="../Externals/Qt/Qt5.14.1/msvc2019_64/lib/cmake/Qt5"
     env:
       DXSDK_DIR: "C:\\Program Files (x86)\\Microsoft DirectX SDK (June 2010)\\"
     name: "Windows ${{ matrix.build_type }}"
@@ -60,7 +60,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake  -G "Ninja" -DQt5_DIR:STRING="../Externals/Qt/Qt5.14.1/msvc2019_64/lib/cmake/Qt5" ${{ matrix.build_config }} ..
+          cmake ${{ matrix.build_config }} ..
           msbuild.exe /v:m /p:Platform=x64 /p:Configuration=Release dolphin-emu.sln
       - name: "Package ${{ matrix.build_type }}"
         working-directory: ${{ github.workspace }}
