@@ -11,13 +11,12 @@ class SlippiSavestate
 public:
   struct PreserveBlock
   {
-    u32 address;
-    u32 length;
-
     bool operator==(const PreserveBlock& p) const
     {
       return address == p.address && length == p.length;
     }
+    u32 address;
+    u32 length;
   };
 
   SlippiSavestate();
@@ -29,15 +28,10 @@ public:
 private:
   typedef struct
   {
-    u32 startAddress;
-    u32 endAddress;
+    u32 start_address;
+    u32 end_address;
     u8* data;
   } ssBackupLoc;
-
-  // These are the game locations to back up and restore
-  std::vector<ssBackupLoc> backupLocs = {};
-
-  void initBackupLocs();
 
   typedef struct
   {
@@ -53,9 +47,11 @@ private:
     }
   };
 
-  std::unordered_map<PreserveBlock, std::vector<u8>, preserve_hash_fn> preservationMap;
+  void InitBackupLocs();
+  void GetDolphinState(PointerWrap& p);
 
-  std::vector<u8> dolphinSsBackup;
-
-  void getDolphinState(PointerWrap& p);
+  // These are the game locations to back up and restore
+  std::vector<ssBackupLoc> m_backup_locs = {};
+  std::unordered_map<PreserveBlock, std::vector<u8>, preserve_hash_fn> m_preservation_map;
+  std::vector<u8> m_dolphin_ss_backup;
 };
