@@ -16,6 +16,7 @@
 #include "Core/Slippi/SlippiPlayback.h"
 #include "Core/Slippi/SlippiReplayComm.h"
 #include "Core/Slippi/SlippiSavestate.h"
+#include "Core/Slippi/SlippiSpectate.h"
 #include "Core/Slippi/SlippiUser.h"
 
 #define ROLLBACK_MAX_FRAMES 7
@@ -46,6 +47,8 @@ namespace ExpansionInterface
       CMD_RECEIVE_GAME_INFO = 0x36,
       CMD_RECEIVE_POST_FRAME_UPDATE = 0x38,
       CMD_RECEIVE_GAME_END = 0x39,
+      CMD_FRAME_BOOKEND = 0x3C,
+      CMD_MENU_FRAME = 0x3E,
 
       // Playback
       CMD_PREPARE_REPLAY = 0x75,
@@ -67,7 +70,7 @@ namespace ExpansionInterface
       CMD_UPDATE = 0xB8,
       CMD_GET_ONLINE_STATUS = 0xB9,
       CMD_CLEANUP_CONNECTION = 0xBA,
-
+      CMD_GET_NEW_SEED = 0xBC,
       // Misc
       CMD_LOG_MESSAGE = 0xD0,
       CMD_FILE_LENGTH = 0xD1,
@@ -109,7 +112,7 @@ namespace ExpansionInterface
       {CMD_UPDATE, 0},
       {CMD_GET_ONLINE_STATUS, 0},
       {CMD_CLEANUP_CONNECTION, 0},
-
+      {CMD_GET_NEW_SEED, 0},
       // Misc
       {CMD_LOG_MESSAGE, 0xFFFF}, // Variable size... will only work if by itself
       {CMD_FILE_LENGTH, 0x40},
@@ -139,7 +142,6 @@ namespace ExpansionInterface
     void closeFile();
     std::string generateFileName();
     bool checkFrameFullyFetched(s32 frameIndex);
-    bool shouldFFWFrame(s32 frameIndex);
 
     // std::ofstream log;
 
@@ -148,6 +150,7 @@ namespace ExpansionInterface
 
     // online play stuff
     u16 getRandomStage();
+    bool isDisconnected();
     void handleOnlineInputs(u8* payload);
     void prepareOpponentInputs(u8* payload);
     void handleSendInputs(u8* payload);
@@ -162,6 +165,7 @@ namespace ExpansionInterface
     void handleUpdateAppRequest();
     void prepareOnlineStatus();
     void handleConnectionCleanup();
+    void prepareNewSeed();
 
     // replay playback stuff
     void prepareGameInfo(u8* payload);

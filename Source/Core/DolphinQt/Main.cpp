@@ -26,6 +26,7 @@
 #include "Core/Boot/Boot.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
+#include "Core/Slippi/SlippiSpectate.h"
 
 #include "DolphinQt/Host.h"
 #include "DolphinQt/MainWindow.h"
@@ -196,6 +197,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     save_state_path = static_cast<const char*>(options.get("save_state"));
   }
 
+#ifndef IS_PLAYBACK
+  SlippiSpectateServer::getInstance().endGame();
+#endif
+
   std::unique_ptr<BootParameters> boot;
   bool game_specified = false;
   if (options.is_set("exec"))
@@ -250,42 +255,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
   }
   else
   {
-    DolphinAnalytics::Instance().ReportDolphinStart("qt");
+#ifndef IS_PLAYBACK
+    if (Settings::Instance().IsBootDefaultISO() && !Settings::Instance().GetDefaultGame().isEmpty())
+    {
+      boot = BootParameters::GenerateFromFile(Settings::Instance().GetDefaultGame().toStdString(), save_state_path);
+    }
+#endif
 
     MainWindow win{std::move(boot), static_cast<const char*>(options.get("movie"))};
     if (options.is_set("debugger"))
       Settings::Instance().SetDebugModeEnabled(true);
     win.Show();
-
-#if defined(USE_ANALYTICS) && USE_ANALYTICS
-    if (!Config::Get(Config::MAIN_ANALYTICS_PERMISSION_ASKED))
-    {
-      ModalMessageBox analytics_prompt(&win);
-
-      analytics_prompt.setIcon(QMessageBox::Question);
-      analytics_prompt.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-      analytics_prompt.setWindowTitle(QObject::tr("Allow Usage Statistics Reporting"));
-      analytics_prompt.setText(
-          QObject::tr("Do you authorize Dolphin to report information to Dolphin's developers?"));
-      analytics_prompt.setInformativeText(
-          QObject::tr("If authorized, Dolphin can collect data on its performance, "
-                      "feature usage, and configuration, as well as data on your system's "
-                      "hardware and operating system.\n\n"
-                      "No private data is ever collected. This data helps us understand "
-                      "how people and emulated games use Dolphin and prioritize our "
-                      "efforts. It also helps us identify rare configurations that are "
-                      "causing bugs, performance and stability issues.\n"
-                      "This authorization can be revoked at any time through Dolphin's "
-                      "settings."));
-
-      const int answer = analytics_prompt.exec();
-
-      Config::SetBase(Config::MAIN_ANALYTICS_PERMISSION_ASKED, true);
-      Settings::Instance().SetAnalyticsEnabled(answer == QMessageBox::Yes);
-
-      DolphinAnalytics::Instance().ReloadConfig();
-    }
-#endif
 
     if (!Settings::Instance().IsBatchModeEnabled())
     {

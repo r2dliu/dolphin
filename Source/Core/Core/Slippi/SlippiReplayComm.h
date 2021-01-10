@@ -32,6 +32,7 @@ public:
     int endFrame = INT_MAX;
     bool outputOverlayFiles;
     bool isRealTimeMode;
+    bool shouldResync; // If true, logic will attempt to resync games
     std::string rollbackDisplayMethod; // off, normal, visible
     std::string commandId;
     std::queue<WatchSettings> queue;
@@ -60,9 +61,7 @@ private:
   u64 configLastLoadModTime;
 
   // Queue stuff
-  bool isFirstLoad = true;
-  bool provideNew = false;
-  int queuePos = 0;
+  bool queueWasEmpty = true;
 
   CommSettings commFileSettings;
 };

@@ -163,6 +163,7 @@ void SlippiReplayComm::loadFile()
     commFileSettings.commandId = "";
     commFileSettings.outputOverlayFiles = false;
     commFileSettings.isRealTimeMode = false;
+    commFileSettings.shouldResync = true;
     commFileSettings.rollbackDisplayMethod = "off";
 
     if (res.is_string())
@@ -193,9 +194,10 @@ void SlippiReplayComm::loadFile()
   commFileSettings.commandId = res.value("commandId", "");
   commFileSettings.outputOverlayFiles = res.value("outputOverlayFiles", false);
   commFileSettings.isRealTimeMode = res.value("isRealTimeMode", false);
+  commFileSettings.shouldResync = res.value("shouldResync", true);
   commFileSettings.rollbackDisplayMethod = res.value("rollbackDisplayMethod", "off");
 
-  if (isFirstLoad)
+  if (commFileSettings.mode == "queue")
   {
     auto queue = res["queue"];
     if (queue.is_array())
@@ -214,8 +216,7 @@ void SlippiReplayComm::loadFile()
 
         commFileSettings.queue.push(w);
       };
+      queueWasEmpty = false;
     }
-
-    isFirstLoad = false;
   }
 }
