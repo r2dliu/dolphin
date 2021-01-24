@@ -15,11 +15,11 @@
 
 SlippiSavestate::SlippiSavestate()
 {
-  initBackupLocs();
+  InitBackupLocs();
 
-  for (auto it = backupLocs.begin(); it != backupLocs.end(); ++it)
+  for (auto it = m_backup_locs.begin(); it != m_backup_locs.end(); ++it)
   {
-    auto size = it->endAddress - it->startAddress;
+    auto size = it->end_address - it->start_address;
     it->data = static_cast<u8*>(Common::AllocateAlignedMemory(size, 64));
   }
 
@@ -33,7 +33,7 @@ SlippiSavestate::SlippiSavestate()
 
 SlippiSavestate::~SlippiSavestate()
 {
-  for (auto it = backupLocs.begin(); it != backupLocs.end(); ++it)
+  for (auto it = m_backup_locs.begin(); it != m_backup_locs.end(); ++it)
   {
     Common::FreeAlignedMemory(it->data);
   }
@@ -44,9 +44,9 @@ bool cmpFn(SlippiSavestate::PreserveBlock pb1, SlippiSavestate::PreserveBlock pb
   return pb1.address < pb2.address;
 }
 
-void SlippiSavestate::initBackupLocs()
+void SlippiSavestate::InitBackupLocs()
 {
-  static std::vector<ssBackupLoc> fullBackupRegions = {
+  static std::vector<ssBackupLoc> s_full_backup_regions = {
       {0x80005520, 0x80005940, nullptr},  // Data Sections 0 and 1
       {0x803b7240, 0x804DEC00, nullptr},  // Data Sections 2-7 and in between sections including BSS
 
@@ -56,7 +56,7 @@ void SlippiSavestate::initBackupLocs()
       {0x80bb0000, 0x811AD5A0, nullptr},  // Unknown Region Pt2, Heap [80bd5c40 - 811AD5A0)
   };
 
-  static std::vector<PreserveBlock> excludeSections = {
+  static std::vector<PreserveBlock> s_exclude_sections = {
       // Sound stuff
       {0x804031A0, 0x24},     // [804031A0 - 804031C4)
       {0x80407FB4, 0x34C},    // [80407FB4 - 80408300)
@@ -95,80 +95,81 @@ void SlippiSavestate::initBackupLocs()
       //{0x806e516c, 0xA8},  // Cam Block 2, including gaps
   };
 
-  static std::vector<ssBackupLoc> processedLocs = {};
+  static std::vector<ssBackupLoc> s_processed_locs = {};
 
   // If the processed locations are already computed, just copy them directly
-  if (processedLocs.size())
+  if (s_processed_locs.size())
   {
-    backupLocs.insert(backupLocs.end(), processedLocs.begin(), processedLocs.end());
+    m_backup_locs.insert(m_backup_locs.end(), s_processed_locs.begin(), s_processed_locs.end());
     return;
   }
 
   // Sort exclude sections
-  std::sort(excludeSections.begin(), excludeSections.end(), cmpFn);
+  std::sort(s_exclude_sections.begin(), s_exclude_sections.end(), cmpFn);
 
   // Initialize backupLocs to full regions
-  backupLocs.insert(backupLocs.end(), fullBackupRegions.begin(), fullBackupRegions.end());
+  m_backup_locs.insert(m_backup_locs.end(), s_full_backup_regions.begin(),
+                       s_full_backup_regions.end());
 
   // Remove exclude sections from backupLocs
   int idx = 0;
-  for (auto it = excludeSections.begin(); it != excludeSections.end(); ++it)
+  for (auto it = s_exclude_sections.begin(); it != s_exclude_sections.end(); ++it)
   {
     PreserveBlock ipb = *it;
 
     while (ipb.length > 0)
     {
       // Move up the backupLocs index until we reach a section relevant to us
-      while (idx < backupLocs.size() && ipb.address >= backupLocs[idx].endAddress)
+      while (idx < m_backup_locs.size() && ipb.address >= m_backup_locs[idx].end_address)
       {
         idx += 1;
       }
 
       // Once idx is beyond backup locs, we are already not backup up this exclusion section
-      if (idx >= backupLocs.size())
+      if (idx >= m_backup_locs.size())
       {
         break;
       }
 
       // Handle case where our exclusion starts before the actual backup section
-      if (ipb.address < backupLocs[idx].startAddress)
+      if (ipb.address < m_backup_locs[idx].start_address)
       {
-        int newSize = (s32)ipb.length - ((s32)backupLocs[idx].startAddress - (s32)ipb.address);
+        int new_size = (s32)ipb.length - ((s32)m_backup_locs[idx].start_address - (s32)ipb.address);
 
-        ipb.length = newSize > 0 ? newSize : 0;
-        ipb.address = backupLocs[idx].startAddress;
+        ipb.length = new_size > 0 ? new_size : 0;
+        ipb.address = m_backup_locs[idx].start_address;
         continue;
       }
 
       // Determine new size (how much we removed from backup)
-      int newSize = (s32)ipb.length - ((s32)backupLocs[idx].endAddress - (s32)ipb.address);
+      int new_size = (s32)ipb.length - ((s32)m_backup_locs[idx].end_address - (s32)ipb.address);
 
       // Add split section after exclusion
-      if (backupLocs[idx].endAddress > ipb.address + ipb.length)
+      if (m_backup_locs[idx].end_address > ipb.address + ipb.length)
       {
-        ssBackupLoc newLoc = {ipb.address + ipb.length, backupLocs[idx].endAddress, nullptr};
-        backupLocs.insert(backupLocs.begin() + idx + 1, newLoc);
+        ssBackupLoc new_loc = {ipb.address + ipb.length, m_backup_locs[idx].end_address, nullptr};
+        m_backup_locs.insert(m_backup_locs.begin() + idx + 1, new_loc);
       }
 
       // Modify section to end at the exclusion start
-      backupLocs[idx].endAddress = ipb.address;
-      if (backupLocs[idx].endAddress <= backupLocs[idx].startAddress)
+      m_backup_locs[idx].end_address = ipb.address;
+      if (m_backup_locs[idx].end_address <= m_backup_locs[idx].start_address)
       {
-        backupLocs.erase(backupLocs.begin() + idx);
+        m_backup_locs.erase(m_backup_locs.begin() + idx);
       }
 
       // Set new size to see if there's still more to process
-      newSize = newSize > 0 ? newSize : 0;
-      ipb.address = ipb.address + (ipb.length - newSize);
-      ipb.length = (u32)newSize;
+      new_size = new_size > 0 ? new_size : 0;
+      ipb.address = ipb.address + (ipb.length - new_size);
+      ipb.length = (u32)new_size;
     }
   }
 
-  processedLocs.clear();
-  processedLocs.insert(processedLocs.end(), backupLocs.begin(), backupLocs.end());
+  s_processed_locs.clear();
+  s_processed_locs.insert(s_processed_locs.end(), m_backup_locs.begin(), m_backup_locs.end());
 }
 
-void SlippiSavestate::getDolphinState(PointerWrap& p)
+void SlippiSavestate::GetDolphinState(PointerWrap& p)
 {
   // p.DoArray(Memory::m_pRAM, Memory::RAM_SIZE);
   // p.DoMarker("Memory");
@@ -193,10 +194,10 @@ void SlippiSavestate::getDolphinState(PointerWrap& p)
 void SlippiSavestate::Capture()
 {
   // First copy memory
-  for (auto it = backupLocs.begin(); it != backupLocs.end(); ++it)
+  for (auto it = m_backup_locs.begin(); it != m_backup_locs.end(); ++it)
   {
-    auto size = it->endAddress - it->startAddress;
-    Memory::CopyFromEmu(it->data, it->startAddress, size);
+    auto size = it->end_address - it->start_address;
+    Memory::CopyFromEmu(it->data, it->start_address, size);
   }
 
   //// Second copy dolphin states
@@ -222,20 +223,20 @@ void SlippiSavestate::Load(std::vector<PreserveBlock> blocks)
   // Back up
   for (auto it = blocks.begin(); it != blocks.end(); ++it)
   {
-    if (!preservationMap.count(*it))
+    if (!m_preservation_map.count(*it))
     {
       // TODO: Clear preservation map when game ends
-      preservationMap[*it] = std::vector<u8>(it->length);
+      m_preservation_map[*it] = std::vector<u8>(it->length);
     }
 
-    Memory::CopyFromEmu(&preservationMap[*it][0], it->address, it->length);
+    Memory::CopyFromEmu(&m_preservation_map[*it][0], it->address, it->length);
   }
 
   // Restore memory blocks
-  for (auto it = backupLocs.begin(); it != backupLocs.end(); ++it)
+  for (auto it = m_backup_locs.begin(); it != m_backup_locs.end(); ++it)
   {
-    auto size = it->endAddress - it->startAddress;
-    Memory::CopyToEmu(it->startAddress, it->data, size);
+    auto size = it->end_address - it->start_address;
+    Memory::CopyToEmu(it->start_address, it->data, size);
   }
 
   //// Restore audio
@@ -246,6 +247,6 @@ void SlippiSavestate::Load(std::vector<PreserveBlock> blocks)
   // Restore
   for (auto it = blocks.begin(); it != blocks.end(); ++it)
   {
-    Memory::CopyToEmu(it->address, &preservationMap[*it][0], it->length);
+    Memory::CopyToEmu(it->address, &m_preservation_map[*it][0], it->length);
   }
 }
